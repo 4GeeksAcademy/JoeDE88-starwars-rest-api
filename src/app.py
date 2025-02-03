@@ -37,7 +37,8 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
-                                            #GET,POST & DELETE USER 
+                                            #GET,POST & DELETE USER
+
 @app.route('/users', methods=['GET'])
 def get_users():
     users_list = Users.query.all()
@@ -54,7 +55,6 @@ def get_user(user_id):
         "content": user
     }
     return jsonify(response_body),200
-
 
 @app.route('/users', methods=['POST'])
 def post_user():
@@ -73,7 +73,7 @@ def post_user():
     )
     db.session.add(new_user)
     db.session.commit()
-    return jsonify(new_user),200
+    return jsonify({"message":"User created successfully."}),200
 
 @app.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
@@ -86,25 +86,35 @@ def delete_user(user_id):
 
     return jsonify({"message": "User deleted successfully"}),200
 
-
                                             # GET,POST & DELETE FAVORITES
-@app.route('/favorites', methods=['GET'])
-def get_favorites():
-    favorites_list = Favorites.query.all()
+
+@app.route('/favorites/<int:user_id>/favorites', methods=['GET'])
+def get_users_favorites(user_id):
+    user = Users.query.get(user_id)
+
+    if not user:
+        return jsonify({"error":"User not found"}),400
+
+    favorites_list = Favorites.query.filter_by(user_id=user_id).all()
+
     response_body = {
         "content": favorites_list
     }
     return jsonify(response_body), 200
 
-@app.route('/favorites',methods=['POST'])
+'''@app.route('/favorites',methods=['POST'])
 def post_favorites():
     data = request.get_json(force=True)
-    required_fields = {"type","external_id","name"}
+
+    user = Users.query.get(user_id)
+    if not user:
+        return jsonify({"error":"User not found"}),400
+
+    required_fields = {"type_enum","external_id","name"}
     if not all(field in data for field in required_fields):
         return jsonify("error: missing required fields"), 400
     
-    user_id = 1
-
+    
     new_favorite = Favorites(
         user_id=user_id,
         external_id=data["external_id"],
@@ -114,10 +124,59 @@ def post_favorites():
 
     db.session.add(new_favorite)
     db.session.commit()
+    return jsonify(new_favorite), 200'''
+ 
+
+
+@app.route('/favorites/<int:user_id>/favorites',methods=['POST'])
+def post_favorites(user_id):
+    data = request.get_json(force=True)
+
+    user = Users.query.get(user_id)
+    if not user:
+        return jsonify({"error":"User not found"}),400
+
+    required_fields = {"type_enum","external_id","name"}
+    if not all(field in data for field in required_fields):
+        return jsonify("error: missing required fields"), 400
+
+    if data["type_enum"] not in FavoritesType.__members__:
+       return jsonify({"error": "Invalid type_enum. Must be one of valid types"}), 400
+    
+    new_favorite = Favorites(
+        user_id=user_id,
+        external_id=data["external_id"],
+        name=data["name"],
+        type_enum=data["type_enum"]
+    )
+
+    db.session.add(new_favorite)
+    db.session.commit()
     return jsonify(new_favorite), 200
 
 
+@app.route('/favorites/<int:favorite_id>',methods=['DELETE'])
+def delete_favorite():
+    data = request.get_json(force=True)
+    if not data or "type_enum" not in data or "external_id" not in data:
+        return jsonify({"error":"Missing required fields"}), 400
+
+    user_id = 1
+
+    favorite = Favorites.query.filter_by(
+        external_id=data["external_id"],type_enum=data["type_enum"],user_id=user_id
+    ).first()
+
+    if not favorite:
+        return jsonify({"error":"Favorite not found"}), 400
+    
+    db.session.delete(favorite)
+    db.session.commit()
+
+    return jsonify({"message":"Favorite deleted"}), 200
+
                                             # GET,POST & DELETE FILMS
+
 @app.route('/films',methods=['GET'])
 def get_films():
     films_list = Films.query.all()
@@ -137,7 +196,7 @@ def get_film(film_id):
 @app.route('/films',methods=['POST'])
 def post_film():
     data = request.get_json(force=True)
-    required_fields = {"title","episode","release_date","director","producer"}
+    required_fields = ["title","episode","release_date","director","producer"]
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return ({"message":"error","missing fields" : missing_fields}),400
@@ -152,6 +211,19 @@ def post_film():
     db.session.add(new_film)
     db.session.commit()
     return jsonify(new_film),200
+
+@app.route('/films/<int:film_id>',methods=['DELETE'])
+def delete_film(film_id):
+    film = Films.query.get(film_id)
+    if not film:
+        return jsonify({"message":"No film found with the requested film_id"}),400
+
+    db.session.delete(film)
+    db.session.commit()
+
+    return jsonify({"message": "Film deleted successfully"}),200
+
+                                         # GET,POST & DELETE PLANETS
 
 @app.route('/planets',methods=['GET'])
 def get_planets():
@@ -169,6 +241,38 @@ def get_planet(planet_id):
     }
     return jsonify(response_body),200   
 
+@app.route('/planets',methods=['POST'])
+def post_planet():
+    data = request.get_json(force=True)
+    required_fields = ["name","population","climate","diameter","gravity"]
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return ({"message":"error","missing fields" : missing_fields}),400
+
+    new_planet = Planets(
+        name=data["name"],
+        population=data["population"],
+        climate=data["climate"],
+        diameter=data["diameter"],
+        gravity=data["gravity"],
+    )
+    db.session.add(new_planet)
+    db.session.commit()
+    return jsonify(new_planet),200
+
+@app.route('/planets/<int:planet_id>',methods=['DELETE'])
+def delete_planet(planet_id):
+    planet = Planets.query.get(planet_id)
+    if not planet:
+        return jsonify({"message":"No planet found with the requested planet_id"}),400
+
+    db.session.delete(planet)
+    db.session.commit()
+
+    return jsonify({"message": "Planet deleted successfully"}),200
+
+
+                                            # GET,POST & DELETE PEOPLE
 @app.route('/people',methods=['GET'])
 def get_people():
     people_list = People.query.all()
@@ -177,6 +281,45 @@ def get_people():
     }
 
     return jsonify(response_body),200
+
+@app.route('/people/<int:people_id>',methods=['GET'])
+def get_person(people_id):
+    person = People.query.get(people_id)
+    response_body = {
+        "content": person
+    }
+    return jsonify(response_body),200   
+
+@app.route('/people',methods=['POST'])
+def post_person():
+    data = request.get_json(force=True)
+    required_fields = ["name","species","skin_color","hair_color","height","homeworld"]
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return ({"message":"error","missing fields" : missing_fields}),400
+
+    new_person = People(
+        name=data["name"],
+        species=data["species"],
+        skin_color=data["skin_color"],
+        hair_color=data["hair_color"],
+        height=data["height"],
+        homeworld=data["homeworld"]
+    )
+    db.session.add(new_person)
+    db.session.commit()
+    return jsonify(new_person),200
+
+@app.route('/person/<int:people_id>',methods=['DELETE'])
+def delete_person(people_id):
+    person = People.query.get(people_id)
+    if not person:
+        return jsonify({"message":"No person found with the requested people_id"}),400
+
+    db.session.delete(person)
+    db.session.commit()
+
+    return jsonify({"message": "Person deleted successfully"}),200
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
