@@ -37,6 +37,12 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
+tables = {
+        "films" : Films,
+    "planets" : Planets,
+    "people" : People
+    }
+
                                             #GET,POST & DELETE USER
 
 @app.route('/users', methods=['GET'])
@@ -88,8 +94,9 @@ def delete_user(user_id):
 
                                             # GET,POST & DELETE FAVORITES
 
-@app.route('/favorites/<int:user_id>/favorites', methods=['GET'])
+@app.route('/users/<int:user_id>/favorites', methods=['GET'])
 def get_users_favorites(user_id):
+
     user = Users.query.get(user_id)
 
     if not user:
@@ -102,46 +109,25 @@ def get_users_favorites(user_id):
     }
     return jsonify(response_body), 200
 
-'''@app.route('/favorites',methods=['POST'])
-def post_favorites():
-    data = request.get_json(force=True)
-
-    user = Users.query.get(user_id)
-    if not user:
-        return jsonify({"error":"User not found"}),400
-
-    required_fields = {"type_enum","external_id","name"}
-    if not all(field in data for field in required_fields):
-        return jsonify("error: missing required fields"), 400
-    
-    
-    new_favorite = Favorites(
-        user_id=user_id,
-        external_id=data["external_id"],
-        name=data["name"],
-        type_enum=data["type"]
-    )
-
-    db.session.add(new_favorite)
-    db.session.commit()
-    return jsonify(new_favorite), 200'''
- 
-
-
-@app.route('/favorites/<int:user_id>/favorites',methods=['POST'])
+@app.route('/users/<int:user_id>/favorites',methods=['POST'])
 def post_favorites(user_id):
     data = request.get_json(force=True)
 
+
+
     user = Users.query.get(user_id)
+
     if not user:
         return jsonify({"error":"User not found"}),400
-
-    required_fields = {"type_enum","external_id","name"}
+    required_fields = ["type_enum","external_id","name"]
     if not all(field in data for field in required_fields):
         return jsonify("error: missing required fields"), 400
-
     if data["type_enum"] not in FavoritesType.__members__:
        return jsonify({"error": "Invalid type_enum. Must be one of valid types"}), 400
+    if Favorites.query.filter_by(external_id=data["external_id"],user_id=user_id,type_enum=data["type_enum"]).first():
+        return jsonify({"error":"Resources already in favorites"}), 400
+    if not tables[data["type_enum"]].query.filter_by(id=data["external_id"]).first():
+        return jsonify({"error":"Resource not found"}), 400
     
     new_favorite = Favorites(
         user_id=user_id,
@@ -155,7 +141,7 @@ def post_favorites(user_id):
     return jsonify(new_favorite), 200
 
 
-@app.route('/favorites/<int:favorite_id>',methods=['DELETE'])
+@app.route('/users/<int:user_id>/favorites/<int:favorite_id>',methods=['DELETE'])
 def delete_favorite():
     data = request.get_json(force=True)
     if not data or "type_enum" not in data or "external_id" not in data:
@@ -185,9 +171,9 @@ def get_films():
     }
     return jsonify(response_body),200
 
-@app.route('/films/<int:film_id>',methods=['GET'])
-def get_film(film_id):
-    film = Films.query.get(film_id)
+@app.route('/films/<int:id>',methods=['GET'])
+def get_film(id):
+    film = Films.query.get(id)
     response_body = {
         "content": film
     }
@@ -205,6 +191,7 @@ def post_film():
         title=data["title"],
         episode=data["episode"],
         release_date=data["release_date"],
+        opening_crawl=data["opening_crawl"],
         director=data["director"],
         producer=data["producer"],
     )
@@ -212,11 +199,11 @@ def post_film():
     db.session.commit()
     return jsonify(new_film),200
 
-@app.route('/films/<int:film_id>',methods=['DELETE'])
-def delete_film(film_id):
-    film = Films.query.get(film_id)
+@app.route('/films/<int:id>',methods=['DELETE'])
+def delete_film(id):
+    film = Films.query.get(id)
     if not film:
-        return jsonify({"message":"No film found with the requested film_id"}),400
+        return jsonify({"message":"No film found with the requested id"}),400
 
     db.session.delete(film)
     db.session.commit()
@@ -233,9 +220,9 @@ def get_planets():
     }
     return jsonify(response_body),200
 
-@app.route('/planets/<int:planet_id>',methods=['GET'])
-def get_planet(planet_id):
-    planet = Planets.query.get(planet_id)
+@app.route('/planets/<int:id>',methods=['GET'])
+def get_planet(id):
+    planet = Planets.query.get(id)
     response_body = {
         "content": planet
     }
@@ -260,11 +247,11 @@ def post_planet():
     db.session.commit()
     return jsonify(new_planet),200
 
-@app.route('/planets/<int:planet_id>',methods=['DELETE'])
-def delete_planet(planet_id):
-    planet = Planets.query.get(planet_id)
+@app.route('/planets/<int:id>',methods=['DELETE'])
+def delete_planet(id):
+    planet = Planets.query.get(id)
     if not planet:
-        return jsonify({"message":"No planet found with the requested planet_id"}),400
+        return jsonify({"message":"No planet found with the requested id"}),400
 
     db.session.delete(planet)
     db.session.commit()
@@ -282,9 +269,9 @@ def get_people():
 
     return jsonify(response_body),200
 
-@app.route('/people/<int:people_id>',methods=['GET'])
-def get_person(people_id):
-    person = People.query.get(people_id)
+@app.route('/people/<int:id>',methods=['GET'])
+def get_person(id):
+    person = People.query.get(id)
     response_body = {
         "content": person
     }
@@ -310,11 +297,11 @@ def post_person():
     db.session.commit()
     return jsonify(new_person),200
 
-@app.route('/person/<int:people_id>',methods=['DELETE'])
-def delete_person(people_id):
-    person = People.query.get(people_id)
+@app.route('/person/<int:id>',methods=['DELETE'])
+def delete_person(id):
+    person = People.query.get(id)
     if not person:
-        return jsonify({"message":"No person found with the requested people_id"}),400
+        return jsonify({"message":"No person found with the requested id"}),400
 
     db.session.delete(person)
     db.session.commit()

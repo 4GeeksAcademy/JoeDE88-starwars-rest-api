@@ -40,23 +40,21 @@ class Favorites(db.Model):
     name:str = db.Column(db.String(50), unique=True,nullable=False)
     type_enum: FavoritesType = db.Column(db.Enum(FavoritesType), nullable=False)
 
-    
-    
-
 @dataclass
 class Films(db.Model):
     __tablename__ = 'films'
-    film_id:int = db.Column(db.Integer,primary_key=True,unique=True)
+    id:int = db.Column(db.Integer,primary_key=True,unique=True)
     title:str = db.Column(db.String(50),nullable=False,unique=True)
     episode:int = db.Column(db.Integer,nullable=False,unique=True)
     release_date:int = db.Column(db.Integer,nullable=False)
+    opening_crawl:int = db.Column(db.String(500),nullable=False)
     director:str = db.Column(db.String(50),nullable=False)
     producer:str = db.Column(db.String(50),nullable=False)
 
 @dataclass
 class Planets(db.Model):
     __tablename__ = 'planets'
-    planet_id:int = db.Column(db.Integer,primary_key=True,unique=True,nullable=False)
+    id:int = db.Column(db.Integer,primary_key=True,unique=True)
     name:str = db.Column(db.String(50),nullable=False,unique=True)
     population:int = db.Column(db.Integer,nullable=False)
     climate:str = db.Column(db.String(50),nullable=False)
@@ -66,10 +64,10 @@ class Planets(db.Model):
 @dataclass
 class People(db.Model):
     __tablename__ = 'people'
-    people_id:int = db.Column(db.Integer,primary_key=True,unique=True,nullable=False)
+    id:int = db.Column(db.Integer,primary_key=True,unique=True)
     name:str = db.Column(db.String(50),unique=True,nullable=False)
     species:str = db.Column(db.String(50),nullable=False)
     skin_color:str = db.Column(db.String(50),nullable=False)
     hair_color:str = db.Column(db.String(50),nullable=False)
     height:int = db.Column(db.Integer,nullable=False)
-    homeworld:int = db.Column(db.Integer,ForeignKey('planets.planet_id'),nullable=False)
+    homeworld:int = db.Column(db.Integer,ForeignKey('planets.id'),nullable=False)
