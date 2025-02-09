@@ -13,7 +13,7 @@ class Users(db.Model):
     username:str = db.Column(db.String(50), nullable=False,unique=True)
     firstname:str = db.Column(db.String(50),nullable=False)
     lastname:str = db.Column(db.String(50),nullable=False)
-    password = db.Column(db.String(80), unique=False, nullable=False)
+    password = db.Column(db.VARCHAR(60), unique=False, nullable=False)
     is_active:bool = db.Column(db.Boolean(), unique=False, nullable=False)
 
     def __repr__(self):
@@ -44,7 +44,7 @@ class Favorites(db.Model):
 class Films(db.Model):
     __tablename__ = 'films'
     id:int = db.Column(db.Integer,primary_key=True,unique=True)
-    title:str = db.Column(db.String(50),nullable=False,unique=True)
+    name:str = db.Column(db.String(50),nullable=False,unique=True)
     episode:int = db.Column(db.Integer,nullable=False,unique=True)
     release_date:int = db.Column(db.Integer,nullable=False)
     opening_crawl:int = db.Column(db.String(500),nullable=False)

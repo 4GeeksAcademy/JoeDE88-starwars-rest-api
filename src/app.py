@@ -94,72 +94,60 @@ def delete_user(user_id):
 
                                             # GET,POST & DELETE FAVORITES
 
-@app.route('/users/<int:user_id>/favorites', methods=['GET'])
-def get_users_favorites(user_id):
+@app.route('/users/<int:user_id>/favorites', methods=["GET", "POST", "DELETE"])
+def handle_favorites(user_id):
 
-    user = Users.query.get(user_id)
-
-    if not user:
-        return jsonify({"error":"User not found"}),400
-
-    favorites_list = Favorites.query.filter_by(user_id=user_id).all()
-
-    response_body = {
-        "content": favorites_list
+    if request.method == "GET":
+        favorites = Favorites.query.filter_by(user_id=user_id).all()
+        response_body = {
+        "content": favorites
     }
-    return jsonify(response_body), 200
+        return jsonify(response_body), 200
 
-@app.route('/users/<int:user_id>/favorites',methods=['POST'])
-def post_favorites(user_id):
-    data = request.get_json(force=True)
+    data = request.get_json()
 
-
-
-    user = Users.query.get(user_id)
-
-    if not user:
-        return jsonify({"error":"User not found"}),400
-    required_fields = ["type_enum","external_id","name"]
-    if not all(field in data for field in required_fields):
-        return jsonify("error: missing required fields"), 400
-    if data["type_enum"] not in FavoritesType.__members__:
-       return jsonify({"error": "Invalid type_enum. Must be one of valid types"}), 400
-    if Favorites.query.filter_by(external_id=data["external_id"],user_id=user_id,type_enum=data["type_enum"]).first():
-        return jsonify({"error":"Resources already in favorites"}), 400
-    if not tables[data["type_enum"]].query.filter_by(id=data["external_id"]).first():
-        return jsonify({"error":"Resource not found"}), 400
+    if request.method == "POST":
+        required_fields = ["type_enum","external_id","name"]
     
-    new_favorite = Favorites(
-        user_id=user_id,
-        external_id=data["external_id"],
-        name=data["name"],
-        type_enum=data["type_enum"]
-    )
+        if not all(field in data for field in required_fields):
+            return jsonify("error: missing required fields"), 400
+        if data["type_enum"] not in FavoritesType.__members__:
+            return jsonify({"error": "Invalid type_enum. Must be one of valid types"}), 400
+        if Favorites.query.filter_by(external_id=data["external_id"],user_id=user_id,type_enum=data["type_enum"]).first():
+            return jsonify({"error":"Resources already in favorites"}), 400
+        if not tables[data["type_enum"]].query.filter_by(id=data["external_id"]).first():
+            return jsonify({"error":"Resource not found"}), 400
+        
+        new_favorite = Favorites(
+            user_id=user_id,
+            external_id=data["external_id"],
+            name=data["name"],
+            type_enum=data["type_enum"]
+        )
 
-    db.session.add(new_favorite)
-    db.session.commit()
-    return jsonify(new_favorite), 200
+        db.session.add(new_favorite)
+        db.session.commit()
+        return jsonify(new_favorite), 200
 
 
-@app.route('/users/<int:user_id>/favorites/<int:favorite_id>',methods=['DELETE'])
-def delete_favorite():
-    data = request.get_json(force=True)
-    if not data or "type_enum" not in data or "external_id" not in data:
-        return jsonify({"error":"Missing required fields"}), 400
+    if request.method == "DELETE":
+        required_fields = ["id"]
 
-    user_id = 1
+        if not data or "type_enum" not in data or "external_id" not in data:
+         return jsonify({"error":"Missing required fields"}), 400
 
-    favorite = Favorites.query.filter_by(
-        external_id=data["external_id"],type_enum=data["type_enum"],user_id=user_id
-    ).first()
 
-    if not favorite:
-        return jsonify({"error":"Favorite not found"}), 400
+        favorite = Favorites.query.filter_by(
+            favorite_id=data["external_id"],user_id=user_id
+        ).first()
+
+        if not favorite:
+            return jsonify({"error":"Favorite not found"}), 400
     
-    db.session.delete(favorite)
-    db.session.commit()
+        db.session.delete(favorite)
+        db.session.commit()
 
-    return jsonify({"message":"Favorite deleted"}), 200
+        return jsonify({"message":"Favorite deleted"}), 200
 
                                             # GET,POST & DELETE FILMS
 
@@ -188,7 +176,7 @@ def post_film():
         return ({"message":"error","missing fields" : missing_fields}),400
 
     new_film = Films(
-        title=data["title"],
+        name=data["name"],
         episode=data["episode"],
         release_date=data["release_date"],
         opening_crawl=data["opening_crawl"],
