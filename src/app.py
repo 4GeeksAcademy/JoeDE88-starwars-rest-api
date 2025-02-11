@@ -131,14 +131,15 @@ def handle_favorites(user_id):
 
 
     if request.method == "DELETE":
-        required_fields = ["id"]
-
-        if not data or "type_enum" not in data or "external_id" not in data:
-         return jsonify({"error":"Missing required fields"}), 400
+        required_fields = ["favorite_id"]
+        
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": "Missing required fields", "missing": missing_fields}), 400
 
 
         favorite = Favorites.query.filter_by(
-            favorite_id=data["external_id"],user_id=user_id
+            favorite_id=data["favorite_id"],user_id=user_id
         ).first()
 
         if not favorite:
