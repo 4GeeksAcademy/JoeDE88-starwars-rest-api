@@ -11,10 +11,7 @@ class Users(db.Model):
     user_id:int = db.Column(db.Integer, primary_key=True)
     email:str = db.Column(db.String(120), unique=True, nullable=False)
     username:str = db.Column(db.String(50), nullable=False,unique=True)
-    firstname:str = db.Column(db.String(50),nullable=False)
-    lastname:str = db.Column(db.String(50),nullable=False)
     password = db.Column(db.VARCHAR(60), unique=False, nullable=False)
-    is_active:bool = db.Column(db.Boolean(), unique=False, nullable=False)
 
     def __repr__(self):
         return '<Users %r>' % self.username

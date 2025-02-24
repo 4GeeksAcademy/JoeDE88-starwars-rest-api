@@ -58,21 +58,21 @@ tables = {
 @app.route('/register',methods=['POST'])
 def register():
     data = request.get_json()
-    username = data.get("username")
     email = data.get("email")
+    username = data.get("username")
     password = data.get("password")
 
     required_fields = ["username","email","password"]
     if not all(field in data for field in required_fields):
         return jsonify({"message":"Missing required fields"}),400
     
-    existing_user = db.sessions.query(Users).filter(or_(Users.username == username,Users.email == email)).first()
+    existing_user = db.session.query(Users).filter(or_(Users.username == username,Users.email == email)).first()
     if existing_user:
         return jsonify({"error":"Username or Email already registered"}),400
     
-    hashedPassword = bcrypt.hashpw(password.encoder('utf-8'),bcrypt.gensalt().decode('utf-8'))
+    hashedPassword = bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt()).decode('utf-8')
 
-    new_user = Users(username==username,email==email,password=hashedPassword)
+    new_user = Users(email=email,username=username,password=hashedPassword)
     db.session.add(new_user)
     db.session.commit()
 
