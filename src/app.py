@@ -2,15 +2,20 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import os
+import bcrypt
+
+from utils import APIException, generate_sitemap
+from admin import setup_admin
+
 from flask import Flask, request, jsonify, url_for
 from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
-from utils import APIException, generate_sitemap
-from admin import setup_admin
+from sqlalchemy import or_
+
 from models import db, Users,Favorites,Films,Planets,People,FavoritesType
-from random import randint
-#from models import Person
+from flask_jwt_extended import create_access_token,get_jwt_identity,jwt_required,JWTManager,set_access_cookies,unset_jwt_cookies,get_jwt_identity
+
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -22,9 +27,15 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:////tmp/test.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+#JWT
+app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
+app.config["JWT_SECRET_KEY"] = "cO48sKPDnc3cbbnAqwq"  # Change this!
+jwt = JWTManager(app)
+
 MIGRATE = Migrate(app, db)
 db.init_app(app)
-CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+CORS(app,supports_credentials=True)
 setup_admin(app)
 
 # Handle/serialize errors like a JSON object
@@ -43,16 +54,73 @@ tables = {
     "people" : People
     }
 
+
+@app.route('/register',methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+
+    required_fields = ["username","email","password"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"message":"Missing required fields"}),400
+    
+    existing_user = db.sessions.query(Users).filter(or_(Users.username == username,Users.email == email)).first()
+    if existing_user:
+        return jsonify({"error":"Username or Email already registered"}),400
+    
+    hashedPassword = bcrypt.hashpw(password.encoder('utf-8'),bcrypt.gensalt().decode('utf-8'))
+
+    new_user = Users(username==username,email==email,password=hashedPassword)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({"message":"User registered successfully"}),201
+
+
+@app.route('/login', methods=['POST'])
+def get_login():
+    data = request.get_json()
+    email = data["email"]
+    password = data["password"]
+
+    required_fields= ["email","password"]
+
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({"error": "Missing required fields", "missing": missing_fields}), 400
+    
+    user = Users.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({"error":"Username not found"}), 400
+
+    is_password_valid = bcrypt.checkpw(password.encode('utf-8'),user.password.encode('utf-8'))
+
+    if not is_password_valid:
+        return jsonify({"error":"Password not correct"}), 400
+
+    access_token = create_access_token(identity=str(user.user_id))
+    response = jsonify({
+        "msg": "login successful",
+        "user": user
+        })
+    
+    set_access_cookies(response,access_token)
+    
+    return response
+
+
+@app.route('/logout',methods=['POST'])
+@jwt_required()
+def logout_with_cookies():
+    response= jsonify({"message":"logout successful"})
+    unset_jwt_cookies(response)
+    return response
+    
                                             #GET,POST & DELETE USER
 
-@app.route('/users', methods=['GET'])
-def get_users():
-    users_list = Users.query.all()
-    response_body = {
-        "content": users_list
-    }
-
-    return jsonify(response_body), 200
 
 @app.route('/users/<int:user_id>',methods=['GET'])
 def get_user(user_id):
@@ -62,46 +130,17 @@ def get_user(user_id):
     }
     return jsonify(response_body),200
 
-@app.route('/users', methods=['POST'])
-def post_user():
-    data = request.get_json(force=True)
-    required_fields = {"email", "username","firstname","password"}
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return jsonify({"error": "Missing required fields", "missing": missing_fields}), 400
-    new_user = Users(
-        email=data["email"],
-        username=data["username"],
-        firstname=data["firstname"],
-        lastname=data["lastname"],
-        password=data["password"],
-        is_active=data["is_active"]
-    )
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({"message":"User created successfully."}),200
-
-@app.route('/users/<int:user_id>', methods=['DELETE'])
-def delete_user(user_id):
-    user = Users.query.get(user_id)
-    if not user:
-        return jsonify({"message":"No user found with the requested user_id"}),400
-
-    db.session.delete(user)
-    db.session.commit()
-
-    return jsonify({"message": "User deleted successfully"}),200
-
                                             # GET,POST & DELETE FAVORITES
 
 @app.route('/users/<int:user_id>/favorites', methods=["GET", "POST", "DELETE"])
+@jwt_required()
 def handle_favorites(user_id):
-
+    user_id = get_jwt_identity()
     if request.method == "GET":
         favorites = Favorites.query.filter_by(user_id=user_id).all()
         response_body = {
         "content": favorites
-    }
+        }
         return jsonify(response_body), 200
 
     data = request.get_json()
